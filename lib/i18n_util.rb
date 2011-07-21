@@ -4,7 +4,7 @@ class I18nUtil
   def self.load_from_yml(file_name)
     data = YAML::load(IO.read(file_name))
     data.each do |code, translations| 
-      locale = Locale.find_or_create_by_code(code)
+      locale = ::Locale.find_or_create_by_code(code)
       backend = I18n::Backend::Simple.new
       keys = extract_i18n_keys(translations)
       keys.each do |key|
@@ -69,7 +69,7 @@ class I18nUtil
 
       puts "translating for #{object} with options #{options.inspect}" unless RAILS_ENV['test']        
       I18n.t(object, options) # default locale first
-      locales =  Locale.available_locales
+      locales =  ::Locale.available_locales
       locales.delete(I18n.default_locale)
       # translate for other locales
       locales.each do |locale|
@@ -95,8 +95,8 @@ class I18nUtil
 
   # Populate translation records from the default locale to other locales if no record exists.
   def self.synchronize_translations
-    non_default_locales = Locale.non_defaults
-    Locale.default_locale.translations.each do |t|
+    non_default_locales = ::Locale.non_defaults
+    ::Locale.default_locale.translations.each do |t|
       non_default_locales.each do |locale|
         unless locale.translations.exists?(:key => t.key, :pluralization_index => t.pluralization_index)
           value = t.value =~ /^---(.*)\n/ ? t.value : nil # well will copy across YAML, like symbols
@@ -108,14 +108,14 @@ class I18nUtil
   end
 
   def self.google_translate
-    Locale.non_defaults.each do |locale|
+    ::Locale.non_defaults.each do |locale|
       locale.translations.untranslated.each do |translation|
         default_locale_value = translation.default_locale_value
         unless needs_human_eyes?(default_locale_value)
           interpolation_arguments= default_locale_value.scan(/\{\{(.*?)\}\}/).flatten
 
           if interpolation_arguments.empty?
-            translation.value = GoogleLanguage.translate(default_locale_value, locale.code, Locale.default_locale.code)
+            translation.value = GoogleLanguage.translate(default_locale_value, locale.code, ::Locale.default_locale.code)
             translation.save!
           else
             placeholder_value = 990 # at least in :es it seems to leave a 3 digit number in the postion on the string
@@ -129,7 +129,7 @@ class I18nUtil
             end
 
             # translate string
-            translated_value = GoogleLanguage.translate(default_locale_value, locale.code, Locale.default_locale.code)
+            translated_value = GoogleLanguage.translate(default_locale_value, locale.code, ::Locale.default_locale.code)
 
             # replace numeric place holders with {{interpolation_arguments}} 
             placeholders.each {|placeholder_value,interpolation_argument| translated_value.gsub!("#{placeholder_value}", "{{#{interpolation_argument}}}") }
